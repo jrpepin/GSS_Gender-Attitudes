@@ -155,6 +155,8 @@ figdata <- figdata %>%
       TRUE                                   ~  NA_character_ 
     ))
 
+write.csv(figdata, "data/gss_ga.csv") # Save the data file
+
 #### Graph it!
 
 fig1 <- ggplot(subset(figdata, prog == "Feminist"),
@@ -168,13 +170,13 @@ fig1 <- ggplot(subset(figdata, prog == "Feminist"),
   scale_colour_manual(name="",
                       breaks=c("fepol", "fechld", "fefam", "fepresch"),
                       labels=c("Disagree men are better politicians",
-                               "Agree a working mother can have warm \na relationship with her kids",
+                               "Agree a working mother can have warm \n relationship with her kids",
                                "Disagree woman takes care of home",
                                "Disagree preschooler suffers if mom works"),
                       values=c("#F8766D", "#00BFC4", "#619CFF", "#C77CFF")) +
   scale_shape_manual(name="",
                       labels=c("Disagree men are better politicians",
-                               "Agree a working mother can have warm \na relationship with her kids",
+                               "Agree a working mother can have warm \n relationship with her kids",
                                "Disagree woman takes care of home",
                                "Disagree preschooler suffers if mom works"),
                       values=c(19, 17, 15, 4)) +
