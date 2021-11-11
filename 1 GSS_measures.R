@@ -1,14 +1,31 @@
 #####################################################################################
 # Set-up the environment
 
-## Set-up the Directories
-mainDir <- "C:/Users/joanna/Dropbox/Data/" # This should be your master data folder 
-subDir  <- "GSS/GSS_7618" # This will be the name of the folder where the GSS data is saved
-dataDir <- file.path(mainDir, subDir)
+## Load the libraries
+library("here")
+library("haven")
+library("tidyverse")
+library("forcats")
+library("psych")
+library("tools")
+library("survey")
+library("srvyr")
 
-repoDir <- "C:/Users/joanna/Dropbox/Repositories/GSS_Gender-Attitudes" # This should be your master project folder (Project GitRepository)
-outDir <- file.path(repoDir, "data") # This will be the name of the folder where data output goes
-figDir <- file.path(repoDir, "figures") # This will be the name of the folder where figures are saved
+
+## Set-up the Directories
+
+repoDir     <- here()                                          # File path to your master project folder (Project GitRepository)
+dataDir     <- "../../Data/GSS/GSS_7218"                       # File path to where the data was downloaded
+
+srcDir      <- file.path(repoDir, "scripts")                   # File path to the R scripts
+outDir      <- file.path(repoDir, "output")                    # File path to save table/processed data
+figDir      <- file.path(repoDir, "figures")                   # File path to save figures
+
+
+setOutputLevel(Info)
+report(Info, "End of #{setupfile}")                            # Marks end of R Script
+
+
 
 ## This will create a data sub-directory folder in the master project directory if doesn't exist
 if (!dir.exists(outDir)){
@@ -24,26 +41,14 @@ if (!dir.exists(figDir)){
   print("figure directory already exists!")
 }
 
-## Load the libraries
-library("haven")
-library("tidyverse")
-library("forcats")
-library("psych")
-library("tools")
-library("survey")
-library("srvyr")
 
 ## Get data
 # http://gss.norc.org/get-the-data/stata
 # GSS 1972-2018 Cross-Sectional Cumulative Data (Release 1, March 18, 2019)
 
-setwd(dataDir) # This will set the working directory to the folder where the data is stored
-
-gss7218 <- read_dta("GSS7218_R1.dta") # Import the downloaded data file.
+gss7218 <- read_dta(file.path(dataDir,"GSS7218_R3.dta")) # Import the downloaded data file.
 
 #####################################################################################
-# Set-up the data
-setwd(repoDir)
 ## Using modified code from https://kieranhealy.org/blog/archives/2019/03/22/a-quick-and-tidy-look-at-the-2018-gss/
 
 ## Select Variables
@@ -117,7 +122,7 @@ gss_svy <- data %>%
                    weights = wtssall,
                    nest = TRUE)
 
-#### Creat yearly averages
+#### Create yearly averages
 fefam_yr <- gss_svy %>%
   group_by(year, fefam_d) %>%
   summarize(prop = survey_mean(na.rm = TRUE, vartype = "ci"))
@@ -155,7 +160,8 @@ figdata <- figdata %>%
       TRUE                                   ~  NA_character_ 
     ))
 
-write.csv(figdata, "data/gss_ga.csv") # Save the data file
+write.csv(figdata, file.path(outDir,"gss_ga.csv")) # Save the data file
+
 
 #### Graph it!
 
@@ -191,4 +197,7 @@ fig1 <- ggplot(subset(figdata, prog == "Feminist"),
         panel.grid.minor.y = element_blank(),
         text = element_text(size=24))
 
-ggsave("figures/fig1.png", fig1, width = 15, height = 8, dpi = 300)
+fig1
+
+ggsave(file.path(figDir,"fig1.png"), fig1, width = 15, height = 8, dpi = 300)
+

@@ -1,0 +1,6 @@
+.RProj*
+*.RProj
+.Rhistory
+.RData
+.Ruserdata
+*.csv
