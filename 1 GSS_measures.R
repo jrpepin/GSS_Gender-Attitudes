@@ -10,6 +10,7 @@ library("psych")
 library("tools")
 library("survey")
 library("srvyr")
+library("directlabels")
 
 
 ## Set-up the Directories
@@ -54,13 +55,13 @@ gss7221 <- read_dta(file.path(dataDir,"gss7221_r1a.dta")) # Import the downloade
 ## Select Variables
 data <- select(gss7221, year, id, wtssall, wtssps, ballot, vpsu,
                vstrat, oversamp, formwt, sampcode, sample,  # Survey variables
-               fepol, fefam, fechld, fepresch,              # Project specific
+               fefam, fechld, fepresch, meovrwrk,           # Project specific
                age, sex, race)                              # Demographic
 
 
 cont_vars <- c("year", "id", "ballot", "age")
 
-cat_vars <- c("race", "sex", "fepol", "fefam", "fechld", "fepresch")
+cat_vars <- c("race", "sex", "fefam", "fechld", "fepresch", "meovrwrk")
 
 wt_vars <- c("vpsu",
              "vstrat",
@@ -78,31 +79,20 @@ data <- data %>%
   modify_at(wt_vars, as.numeric) %>%
   modify_at(cat_vars, as_factor) %>%
   modify_at(cat_vars, fct_relabel, toTitleCase) %>%
-  mutate(year_f = droplevels(factor(year)),
-         fefam = fct_recode(fefam, NULL = "IAP", NULL = "DK", NULL = "NA"),
-         fefam_d = fct_recode(fefam,
-                     Agree = "Strongly Agree",
-                     Disagree = "Strongly Disagree"),
-         fefam_n = car::recode(fefam_d, "'Agree'=0; 'Disagree'=1;", as.factor=FALSE),
-         fepol = fct_recode(fepol, NULL = "IAP", NULL = "DK", NULL = "NA", NULL = "NOT SURE"),
-         fepol_d = fepol,
-         fepol_n = car::recode(fepol_d, "'Agree'=0; 'Disagree'=1;", as.factor=FALSE),
-         fechld = fct_recode(fechld, NULL = "IAP", NULL = "DK", NULL = "NA"),
-         fechld_d = fct_recode(fechld,
-                     Agree = "Strongly Agree",
-                     Disagree = "Strongly Disagree"),
-         fechld_n = car::recode(fechld_d, "'Agree'=1; 'Disagree'=0;", as.factor=FALSE),
-         fepresch = fct_recode(fepresch, NULL = "IAP", NULL = "DK", NULL = "NA"),
-         fepresch_d = fct_recode(fepresch,
-                     Agree = "Strongly Agree",
-                     Disagree = "Strongly Disagree"),
-         fepresch_n = car::recode(fepresch_d, "'Agree'=0; 'Disagree'=1;", as.factor=FALSE))
+  mutate(year_f     = droplevels(factor(year)),
+         fefam      = fct_recode(fefam, NULL     = "IAP", NULL = "DK", NULL = "NA"),
+         fefam_d    = fct_recode(fefam, Agree    = "Strongly Agree", Disagree = "Strongly Disagree"),
+         fefam_n    = car::recode(fefam_d, "'Agree'=0; 'Disagree'=1;", as.factor=FALSE),
+         fechld     = fct_recode(fechld, NULL    = "IAP", NULL = "DK", NULL = "NA"),
+         fechld_d   = fct_recode(fechld, Agree   = "Strongly Agree", Disagree = "Strongly Disagree"),
+         fechld_n   = car::recode(fechld_d, "'Agree'=1; 'Disagree'=0;", as.factor=FALSE),
+         fepresch   = fct_recode(fepresch, NULL  = "IAP", NULL = "DK", NULL = "NA"),
+         fepresch_d = fct_recode(fepresch, Agree = "Strongly Agree", Disagree = "Strongly Disagree"),
+         fepresch_n = car::recode(fepresch_d, "'Agree'=0; 'Disagree'=1;", as.factor=FALSE),
+         meovrwrk   = fct_recode(meovrwrk, NULL  = "IAP", NULL = "DK", NULL = "NA"),
+         meovrwrk_d = fct_recode(meovrwrk, Agree = "Strongly Agree", Disagree = "Strongly Disagree"),
+         meovrwrk_n = car::recode(meovrwrk_d, "'Agree'=0; 'Disagree'=1;", as.factor=FALSE))
 
-# WHAT IS THIS DOING? ANYTHING?
-# data$compwt <- with(data, oversamp * formwt * wtssall)
-# data$samplerc <- with(data, ifelse(sample %in% 3:4, 3,
-  #                                     ifelse(sample %in% 6:7, 6,
-  #                                           sample)))
 
 ## Now we need to take this data and use the survey variables in it, 
 ## so we can properly calculate population means and errors and so on. 
@@ -119,6 +109,9 @@ data  <- data  %>%
       year == 2021   ~ wtssps
     ))
 
+# mothers' employment variables --------------------------------------------------
+
+## create survey data
 gss_svy <- data %>%
   filter(year > 1974) %>%
   drop_na(fefam_d) %>%
@@ -130,14 +123,10 @@ gss_svy <- data %>%
                    weights = svyweight,
                    nest = TRUE)
 
-#### Create yearly averages
+## Create yearly averages
 fefam_yr <- gss_svy %>%
   group_by(year, fefam_d) %>%
   summarize(prop = survey_mean(na.rm = TRUE, vartype = "ci"))
-
-# fepol_yr <- gss_svy %>% # NOT IN 2021
- # group_by(year, fepol_d) %>%
- # summarize(prop = survey_mean(na.rm = TRUE, vartype = "ci"))
 
 fechld_yr <- gss_svy %>%
   group_by(year, fechld_d) %>%
@@ -147,7 +136,7 @@ fepresch_yr <- gss_svy %>%
   group_by(year, fepresch_d) %>%
   summarize(prop = survey_mean(na.rm = TRUE, vartype = "ci"))
 
-## Combine the averages
+### Combine the averages
 fefam_yr$att     <- "fefam" 
 fechld_yr$att    <- "fechld" 
 fepresch_yr$att  <- "fepresch" 
@@ -169,8 +158,7 @@ figdata <- figdata %>%
 write.csv(figdata, file.path(outDir,"gss_ga.csv")) # Save the data file
 
 
-#### Graph it!
-
+## Graph it!
 fig1 <- ggplot(subset(figdata, prog == "Feminist"),
        aes(x = year, y = prop,
            ymin = prop_low, ymax = prop_upp,
@@ -207,4 +195,54 @@ fig1 <- ggplot(subset(figdata, prog == "Feminist"),
 fig1
 
 ggsave(file.path(figDir,"fig1.png"), fig1,width=9, height=6, units="in", dpi=300)
+
+# meovrwrk ---------------------------------------------------------------------
+
+## create survey data
+mwrk_svy <- data %>%
+  filter(year > 1992) %>%
+  drop_na(meovrwrk_d) %>%
+  drop_na(sex)        %>%
+  mutate(stratvar = interaction(year, vstrat)) %>%
+  as_survey_design(id = vpsu,
+                   strata = stratvar,
+                   weights = svyweight,
+                   nest = TRUE)
+
+## create the averages
+meovrwrk_yr <- mwrk_svy %>%
+  group_by(year, sex, meovrwrk_d) %>%
+  summarize(prop = survey_mean(na.rm = TRUE, vartype = "ci"))
+
+levels(meovrwrk_yr$sex) <- list(Men  = "Male", Women = "Female")
+
+## Graph it!
+fig2 <- ggplot(subset(meovrwrk_yr, meovrwrk_d == "Agree"),
+       aes(x = year, y = prop,
+           ymin = prop_low, ymax = prop_upp,
+           color = sex)) +
+  geom_line(size = 1.5) +
+  geom_pointrange(color = "#605A52") +
+  geom_point(size = 3, shape=21, fill="white") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(.2, 1)) +
+  scale_x_continuous(limits = c(1993, 2022), breaks = c(1994, 2008, 2021), label = c("1994", "2008", "2021")) +
+  theme_minimal(14) +
+  theme(legend.title       = element_blank(),
+        legend.text        = element_text(color = "#605A52"),
+        legend.key.size    = unit(1.5, "cm"),
+        strip.text.x       = element_text(face = "bold"),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        plot.caption       = element_text(color = "grey70", face = "italic")) +
+  labs( x        = "Survey Year", 
+        y        = " ", 
+        title    = "Fewer U.S. adults (strongly) agree that men hurt the family \nwhen they focus too much on work",
+        caption  = "General Social Surveys 1994-2021 | Joanna Pepin") +
+  scale_color_manual(guide = 'none', values = c("#116A66", "#CD661D")) +
+  scale_shape_discrete(guide = 'none') +
+  geom_dl(aes(label = sex), method = list(dl.trans(x = x + 0.2), "last.points", cex = 0.8))
+
+fig2
+
+ggsave(file.path(figDir,"fig2.png"), fig2,width=9, height=6, units="in", dpi=300)
 

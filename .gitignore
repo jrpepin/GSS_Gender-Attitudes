@@ -5,3 +5,4 @@
 .Ruserdata
 output/
 *.png
+.Rproj.user
