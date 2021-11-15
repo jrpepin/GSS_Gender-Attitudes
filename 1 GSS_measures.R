@@ -56,12 +56,12 @@ gss7221 <- read_dta(file.path(dataDir,"gss7221_r1a.dta")) # Import the downloade
 data <- select(gss7221, year, id, wtssall, wtssps, ballot, vpsu,
                vstrat, oversamp, formwt, sampcode, sample,  # Survey variables
                fefam, fechld, fepresch, meovrwrk,           # Project specific
-               age, sex, race)                              # Demographic
+               age, sex, race, mode)                        # Demographic
 
 
 cont_vars <- c("year", "id", "ballot", "age")
 
-cat_vars <- c("race", "sex", "fefam", "fechld", "fepresch", "meovrwrk")
+cat_vars <- c("race", "sex", "mode",  "fefam", "fechld", "fepresch", "meovrwrk")
 
 wt_vars <- c("vpsu",
              "vstrat",
