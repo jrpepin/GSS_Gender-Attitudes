@@ -12,7 +12,6 @@ library("survey")
 library("srvyr")
 library("directlabels")
 
-
 ## Set-up the Directories
 
 repoDir     <- here()                                          # File path to your master project folder (Project GitRepository)
@@ -21,11 +20,6 @@ dataDir     <- "../../Data/GSS/GSS_7221"                       # File path to wh
 srcDir      <- file.path(repoDir, "scripts")                   # File path to the R scripts
 outDir      <- file.path(repoDir, "output")                    # File path to save table/processed data
 figDir      <- file.path(repoDir, "figures")                   # File path to save figures
-
-
-setOutputLevel(Info)
-report(Info, "End of #{setupfile}")                            # Marks end of R Script
-
 
 
 ## This will create a data sub-directory folder in the master project directory if doesn't exist
@@ -45,23 +39,23 @@ if (!dir.exists(figDir)){
 
 ## Get data
 # http://gss.norc.org/get-the-data/stata
-# GSS 1972-2021 Cross-Sectional Cumulative Data (Release 1a, Nov. 8, 2021)
+# GSS 1972-2021 Cross-Sectional Cumulative Data (Release 2, May 2022)
 
-gss7221 <- read_dta(file.path(dataDir,"gss7221_r1a.dta")) # Import the downloaded data file.
+gss7221 <- read_dta(file.path(dataDir,"gss7221_r2.dta")) # Import the downloaded data file.
 
 #####################################################################################
-## Using modified code from https://kieranhealy.org/blog/archives/2019/03/22/a-quick-and-tidy-look-at-the-2018-gss/
+## Modified code from https://kieranhealy.org/blog/archives/2019/03/22/a-quick-and-tidy-look-at-the-2018-gss/
 
 ## Select Variables
 data <- select(gss7221, year, id, wtssall, wtssps, ballot, vpsu,
                vstrat, oversamp, formwt, sampcode, sample,  # Survey variables
-               fefam, fechld, fepresch, meovrwrk,           # Project specific
+               fefam, fechld, fepresch, fepol, meovrwrk,    # Project specific
                age, sex, race, mode)                        # Demographic
 
 
 cont_vars <- c("year", "id", "ballot", "age")
 
-cat_vars <- c("race", "sex", "mode",  "fefam", "fechld", "fepresch", "meovrwrk")
+cat_vars <- c("race", "sex", "mode",  "fefam", "fechld", "fepresch", "fepol",  "meovrwrk")
 
 wt_vars <- c("vpsu",
              "vstrat",
@@ -89,6 +83,8 @@ data <- data %>%
          fepresch   = fct_recode(fepresch, NULL  = "IAP", NULL = "DK", NULL = "NA"),
          fepresch_d = fct_recode(fepresch, Agree = "Strongly Agree", Disagree = "Strongly Disagree"),
          fepresch_n = car::recode(fepresch_d, "'Agree'=0; 'Disagree'=1;", as.factor=FALSE),
+         fepol      = fct_recode(fepol, NULL     = "IAP", NULL = "DK", NULL = "NA"),
+         fepol_n    = car::recode(fepol, "'Agree'=0; 'Disagree'=1;", as.factor=FALSE),
          meovrwrk   = fct_recode(meovrwrk, NULL  = "IAP", NULL = "DK", NULL = "NA"),
          meovrwrk_d = fct_recode(meovrwrk, Agree = "Strongly Agree", Disagree = "Strongly Disagree"),
          meovrwrk_n = car::recode(meovrwrk_d, "'Agree'=0; 'Disagree'=1;", as.factor=FALSE))
@@ -113,10 +109,19 @@ data  <- data  %>%
 
 ## create survey data
 gss_svy <- data %>%
-  filter(year > 1974) %>%
+  filter(year > 1976) %>%
   drop_na(fefam_d) %>%
   drop_na(fechld_d) %>%
   drop_na(fepresch_d) %>%
+  mutate(stratvar = interaction(year, vstrat)) %>%
+  as_survey_design(id = vpsu,
+                   strata = stratvar,
+                   weights = svyweight,
+                   nest = TRUE)
+
+gss_svy2 <- data %>%
+  filter(year > 1977 & year < 2020) %>%
+  drop_na(fepol) %>% # not asked after 2018
   mutate(stratvar = interaction(year, vstrat)) %>%
   as_survey_design(id = vpsu,
                    strata = stratvar,
@@ -136,16 +141,23 @@ fepresch_yr <- gss_svy %>%
   group_by(year, fepresch_d) %>%
   summarize(prop = survey_mean(na.rm = TRUE, vartype = "ci"))
 
+fepol_yr <- gss_svy2 %>%
+  group_by(year, fepol) %>%
+  summarize(prop = survey_mean(na.rm = TRUE, vartype = "ci"))
+
 ### Combine the averages
 fefam_yr$att     <- "fefam" 
 fechld_yr$att    <- "fechld" 
 fepresch_yr$att  <- "fepresch" 
+fepol_yr$att     <- "fepol"
 
 colnames(fefam_yr)[colnames(fefam_yr)=="fefam_d"]          <- "val"
 colnames(fechld_yr)[colnames(fechld_yr)=="fechld_d"]       <- "val"
 colnames(fepresch_yr)[colnames(fepresch_yr)=="fepresch_d"] <- "val"
+colnames(fepol_yr)[colnames(fepol_yr)=="fepol"]            <- "val"
 
-figdata <- rbind(fefam_yr, fechld_yr, fepresch_yr)
+
+figdata <- rbind(fefam_yr, fechld_yr, fepresch_yr, fepol_yr)
 
 figdata <- figdata %>%
   mutate(
@@ -157,27 +169,33 @@ figdata <- figdata %>%
 
 write.csv(figdata, file.path(outDir,"gss_ga.csv")) # Save the data file
 
+figdata$att <- factor(figdata$att, 
+                        levels = c("fepol", "fechld", "fefam", "fepresch"), 
+                        ordered = FALSE)
+
 
 ## Graph it!
 fig1 <- ggplot(subset(figdata, prog == "Feminist"),
        aes(x = year, y = prop,
            ymin = prop_low, ymax = prop_upp,
-           color = att, shape = att)) +
+           color = att)) +
   geom_line(size = 1.5) +
-  geom_point(size = 3) +
+  geom_point(size = 3, aes(shape = att)) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(.2, 1)) +
   scale_x_continuous(breaks = c(1977, 2000, 2021), label = c("1977", "2000", "2021")) +
   scale_colour_manual(name="",
-                      breaks=c("fechld", "fefam", "fepresch"),
-                      labels=c("Agree a working mother can have warm \n relationship with her kids",
+                      breaks=c("fepol", "fechld", "fefam", "fepresch"),
+                      labels=c("Disagree women not suited for politics",
+                               "Agree a working mother can have warm \n relationship with her kids",
                                "Disagree woman takes care of home",
                                "Disagree preschooler suffers if mom works"),
-                      values=c("#F8766D", "#00BFC4", "#619CFF")) +
+                      values=c("#2EA5D7", "#EFA937", "#F27575", "#51E0CE")) +
   scale_shape_manual(name="",
-                      labels=c("Agree a working mother can have warm \n relationship with her kids",
+                      labels=c("Disagree women not suited for politics",
+                               "Agree a working mother can have warm \n relationship with her kids",
                                "Disagree woman takes care of home",
                                "Disagree preschooler suffers if mom works"),
-                      values=c(19, 17, 15)) +
+                      values=c(15, 19, 17, 3)) +
   theme_minimal(14) +
   theme(legend.title       = element_blank(),
         legend.text        = element_text(color = "#605A52"),
@@ -188,7 +206,7 @@ fig1 <- ggplot(subset(figdata, prog == "Feminist"),
         plot.caption       = element_text(color = "grey70", face = "italic")) +
   labs( x        = "Survey Year", 
         y        = " ", 
-        title    = "Support for mothers' employment continued to increase in 2020/2021",
+      #  title    = "Support for mothers' employment continued to increase in 2020/2021",
         caption  = "General Social Surveys 1977-2021 | Joanna Pepin") 
 
 
@@ -238,7 +256,7 @@ fig2 <- ggplot(subset(meovrwrk_yr, meovrwrk_d == "Agree"),
         y        = " ", 
         title    = "Fewer U.S. adults (strongly) agree that men hurt the family \nwhen they focus too much on work",
         caption  = "General Social Surveys 1994-2021 | Joanna Pepin") +
-  scale_color_manual(guide = 'none', values = c("#116A66", "#CD661D")) +
+  scale_color_manual(guide = 'none', values = c("#2EA5D7", "#F27575")) +
   scale_shape_discrete(guide = 'none') +
   geom_dl(aes(label = sex), method = list(dl.trans(x = x + 0.2), "last.points", cex = 0.8))
 
