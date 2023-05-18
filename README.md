@@ -4,7 +4,7 @@ Joanna R. Pepin
 
 ## DATA
 
-[GSS 1972-2021 Cross-Sectional Cumulative Data](http://gss.norc.org/get-the-data/stata) (Release 1a, Nov. 8, 2021)
+[GSS 1972-2022 Cross-Sectional Cumulative Data](http://gss.norc.org/get-the-data/stata) (Release 1, May 2023)
 
 ## Analysis
 
