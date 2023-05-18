@@ -216,7 +216,7 @@ fig1 <- ggplot(subset(figdata, prog == "Feminist" & att != "fepol"),
 
 fig1
 
-ggsave(file.path(figDir,"fig1.png"), fig1,width=11, height=6, units="in", dpi=300)
+ggsave(file.path(figDir,"fig1.png"), fig1,width=11, height=6, units="in", dpi=300, bg = "white")
 
 # meovrwrk ---------------------------------------------------------------------
 
@@ -265,5 +265,5 @@ fig2 <- ggplot(subset(meovrwrk_yr, meovrwrk == "Agree"),
 
 fig2
 
-ggsave(file.path(figDir,"fig2.png"), fig2,width=9, height=6, units="in", dpi=300)
+ggsave(file.path(figDir,"fig2.png"), fig2,width=9, height=6, units="in", dpi=300, bg = "white")
 
