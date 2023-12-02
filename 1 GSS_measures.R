@@ -39,19 +39,21 @@ if (!dir.exists(figDir)){
 
 ## Get data
 # http://gss.norc.org/get-the-data/stata
-# GSS 1972-2021 Cross-Sectional Cumulative Data (Release 2, May 2022)
+# GSS 1972-2022 Cross-Sectional Cumulative Data (Release 1, May 2023)
 
-gss7222 <- read_dta(file.path(dataDir,"gss7222_r1.dta")) # Import the downloaded data file.
+# Import the downloaded data file.
+data <- read_dta(file.path(dataDir,"gss7222_r1.dta"), 
+                 col_select = c( 
+                   # Survey variables
+                        "year", "id", "wtssall", "wtssps", "ballot", "mode",
+                        "vpsu", "vstrat", "oversamp", "formwt", "sampcode", "sample",
+                   # Project specific
+                        "fefam", "fechld", "fepresch", "fepol", "meovrwrk",
+                   # Demographic
+                        "age", "sex", "race")) 
 
 #####################################################################################
 ## Modified code from https://kieranhealy.org/blog/archives/2019/03/22/a-quick-and-tidy-look-at-the-2018-gss/
-
-## Select Variables
-data <- select(gss7222, year, id, wtssall, wtssps, ballot, vpsu,
-               vstrat, oversamp, formwt, sampcode, sample,  # Survey variables
-               fefam, fechld, fepresch, fepol, meovrwrk,    # Project specific
-               age, sex, race, mode)                        # Demographic
-
 
 cont_vars <- c("year", "id", "ballot", "age")
 
