@@ -173,20 +173,24 @@ figdata <- figdata |>
       TRUE                                   ~  NA_character_ 
     ))
 
-write.csv(figdata, file.path(outDir,"gss_ga.csv")) # Save the data file
 
 figdata$att <- factor(figdata$att, 
                         levels = c("fepol", "fechld", "fefam", "fepresch"), 
                         ordered = FALSE)
 
+write.csv(figdata, file.path(outDir,"gss_ga.csv")) # Save the data file
+
+saveRDS(figdata, file.path(outDir,"gss_ga.rds"))
+
+# FIGURES ----------------------------------------------------------------------
 
 ## Graph it!
 fig1 <- ggplot(subset(figdata, prog == "Feminist"),
        aes(x = year, y = prop,
            ymin = prop_low, ymax = prop_upp,
            color = att)) +
-  geom_line(linewidth = 1.5) +
-  geom_point(size = 3, aes(shape = att)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2, aes(shape = att)) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(.2, 1)) +
   scale_x_continuous(breaks = c(1977, 2000, 2020, 2024), label = c("'77", "'00", "'20", "'24")) +
   scale_colour_manual(
@@ -215,7 +219,7 @@ fig1 <- ggplot(subset(figdata, prog == "Feminist"),
         plot.caption       = element_text(color = "grey70", face = "italic")) +
   labs( x        = "Survey Year", 
         y        = " ",
-       title    = "Support for mothers' employment in 2024 \nis similar to recent pre-pandemic years",
+       title    = "Trends in support for mothers' employment",
        caption  = "General Social Surveys 1977-2024 | Joanna Pepin") 
 
 fig1
